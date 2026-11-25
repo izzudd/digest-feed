@@ -1,0 +1,191 @@
+{
+  "date": "2026-11-26",
+  "headline": "Agents got the keys: merge rights, kernel hooks, and the harnesses that make them affordable",
+  "intro": "Two releases this week hand an agent real authority: one decides what merges into your default branch, the other writes code that executes inside your kernel. Everything else here is the scaffolding around that shift, from a harness that offloads legwork to a local model and cuts frontier cost by two thirds, to context eviction that treats stale tool output as garbage. Plus Nuxt on Nitro v3, delta compression for JS bundles across three engines, and what eleven times the pull requests actually cost one engineer.",
+  "sections": [
+    {
+      "name": "Today's lead",
+      "blurb": "Authority, not tasks: the merge button and the kernel.",
+      "articles": [
+        {
+          "title": "Claude Ship: the agent now decides what merges",
+          "source": "Claude / Anthropic",
+          "url": "https://claude.com/resources/articles/introducing-claude-ship",
+          "why": "This is the first mainstream product where an agent holds approval authority, and the design of that authority is worth copying or refusing deliberately.",
+          "body": [
+            "Three parts, one genuinely new. Code Review is generally available and reviews a pull request against the codebase, then adversarially re-checks its own findings. PR Steward is the fixer: failing CI, merge conflicts, reviewer comments, commenting after every push on what changed and how to undo it. Claude Approvals holds the authority: it reads a policy file committed to the repository and decides whether a change merges without a person.",
+            "The policy file is the artifact. It lives on the default branch, can key off Code Review findings or your own natural-language classifiers, and can require a human for named paths. Branch protection can then require Claude's verdict, turning merge rights into a versioned file that travels through the same review as code. Anthropic recommends observe-only first, which admits the failure mode is a wrong approval, not a wrong fix.",
+            "On Anthropic's own Claude Code team, merged pull requests more than doubled from June to September while the reverted share fell over 40 percent. Billed on tokens, unavailable under zero-retention keys. The weakest link is that policy file: anyone who can land a commit on the default branch can loosen the gate, in a diff nobody reads."
+          ]
+        },
+        {
+          "title": "Shirudo: agents write kernel shields for unpatched Linux",
+          "source": "OpenAI",
+          "url": "https://openai.com/index/introducing-shirudo",
+          "why": "It is the clearest case yet of an agent producing code that runs in the kernel, and the safety story is signatures and review rather than trusting the model.",
+          "body": [
+            "OpenAI and Cisco released Shirudo, an open-source runtime that mitigates behaviour rather than patching code. Shields are eBPF programs attached at specific points in a running kernel, blocking the path a vulnerability needs without a restart. In their test, a Codex-generated shield added an input check to Java's Base64 decoder and stopped a Java4Shell exploit against a live Elasticsearch instance, which kept serving traffic throughout.",
+            "The plumbing carries the argument. Shirudo is a one-shot CLI with no daemon on the target. Shields ship as signed .bee packages through an OCI registry, verified with a TPM before loading, and the eBPF verifier plus kernel restrictions bound what can load at all. It descends from Tetragon, rewritten so the agent's input is code rather than a policy language designed for humans. Shields also report hit counts, so you learn an exploit was attempted.",
+            "Two honest caveats. It is pre-release, and production targets need a kernel carrying Shirudo's patches plus a TPM 2.0. And letting an agent write code that executes in the kernel is exactly the trade security researchers flagged at launch: real mitigation potential, real unease about blast radius. The answer here is a signed, reviewable artifact, not a trusted model."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AI & research",
+      "blurb": "Scaffolding beats scale, and verification beats enthusiasm.",
+      "articles": [
+        {
+          "title": "A Flash model matches frontier chemistry once it gets tools and a playbook",
+          "source": "Google DeepMind",
+          "url": "https://deepmind.google/blog/interpreting-mass-spectra-with-google-antigravity/",
+          "why": "It is the cleanest measurement so far that skills plus tools, not a bigger model, are what turn an agent from useless into useful on a hard domain.",
+          "body": [
+            "DeepMind ran three setups on the same problem. Gemini 4 with no tools, the same model allowed to search public chemical libraries, and the model with Mass Spec Skills, a set of domain skills that call established chemistry tools and query compound databases on the user's behalf. The task was identifying a molecule from its tandem mass spectrum, 100 compounds sampled from a public collection.",
+            "With no tools or internet, accuracy stayed below 4 percent across all three models, including the two frontier ones. With internet alone, the frontier models missed a quarter to a third of the spectra because hand-written search scripts broke on adducts, precursor windows and noisy peaks; the lightweight Flash missed more than three quarters. With the skills, all three identified and verified the exact molecule in about 97 percent of attempts. Flash matched the frontier models.",
+            "The hard part was never the chemistry reasoning. It was the brittle glue between the model and the tools, and a skill encodes that glue once, for every user. If you ship a tool for agents, the playbook is now part of the product, not documentation you hope the caller invents."
+          ]
+        },
+        {
+          "title": "Agent teams found cheaper quantum circuits, and Lean kept them honest",
+          "source": "Google DeepMind",
+          "url": "https://deepmind.google/blog/finding-faster-quantum-algorithms-with-agents-and-formal-verification/",
+          "why": "This is the template for agent research that actually compounds: cheap parallel exploration behind an expensive, unfakeable gate.",
+          "body": [
+            "DeepMind ran several independent Gemini 4 agent teams against the same set of quantum algorithm problems. The teams met at a virtual conference every four hours to trade and debate ideas, and an idea could only enter the shared notebook once it had a Lean proof. That single rule is why the result is interesting: the filter is exact, so the pool does not fill with plausible-but-wrong optimisations.",
+            "The numbers are large. A circuit for a property of inertial confinement fusion got 11.8x cheaper, with error-corrected memory down from 5,650 to 4,338 qubits. A photochemistry simulation got 8x cheaper. Cytochrome P450, the enzyme that breaks down most medicines, got 2.5x cheaper by replacing bulky memory lookups, dropping from 481 to 333 qubits. They also found 2.57x on one Grover implementation and 290x on arcsin, a routine other algorithms use to load numbers.",
+            "The Lean library, problem specifications and verified solutions are open source. The transferable pattern is not the agent architecture but the gate: parallel exploration on one side, a checker you cannot argue with on the other. Where the claim cannot be formalised, this loop does not transfer, and that is most of software."
+          ]
+        },
+        {
+          "title": "SFT teaches form, RL finds function, and the two are nearly independent",
+          "source": "arXiv",
+          "url": "https://arxiv.org/abs/2611.26756",
+          "why": "If this holds, curating perfect fine-tuning traces is close to wasted effort once you plan to do RL, which changes where post-training budget should go.",
+          "body": [
+            "The setup is brutal by design. Take GSM8K and corrupt the fine-tuning trajectories 361 ways: wrong answers, errors mid-trace, inconsistent trace-answer pairs, corruption up to 100 percent. SFT accuracy falls from 43.6 percent to 13.8 percent. Then run GRPO on top, and accuracy returns to roughly 60 percent, the gold baseline, at every corruption level tested.",
+            "The stranger result is the initialisation. Start RL from eight minimal three-line traces that are deliberately incorrect but have the right shape, and post-RL accuracy reaches 69.3 percent, ahead of starting from gold SFT data at 60.7 percent and far ahead of RL with no SFT at 35 percent. SFT accuracy and post-RL accuracy come out uncorrelated, with r near zero.",
+            "The authors read it as an asymmetry: SFT establishes structural layout, RL independently discovers the reasoning. Taken seriously, that means picking a checkpoint by fine-tuning loss tells you little about what RL will make of it, and reward design plus a trustworthy verifier is where the effort belongs. It is one dataset and one model family, so treat it as a strong hint, not a law."
+          ]
+        },
+        {
+          "title": "A benchmark for consistency instead of ceilings",
+          "source": "Google DeepMind",
+          "url": "https://blog.google/innovation-and-ai/models-and-research/google-deepmind/humanitys-first-exam/",
+          "why": "Your product fails on the third paraphrase of an easy task, not on the hard one, and almost no benchmark measures that.",
+          "body": [
+            "Every headline benchmark measures a ceiling: can the model do this hard thing once. Humanity's First Exam measures the floor. It is 544 elementary text and image prompts across 20 foundational capabilities, with slight variations, and it scores whether a model gets them right every time rather than whether it can.",
+            "The example prompt is the register: look at a neon sign and list the colour of the third letter of each word, in order. Nothing there is difficult for a frontier model, which is the point. DeepMind says frontier models improved substantially on it over six months, and that is a claim about variance shrinking, not about capability rising.",
+            "They are running a Kaggle competition through 15 December asking people to submit everyday questions models still get wrong, which is worth entering for the dataset alone. The method is also worth copying into your own evals: take each case and rephrase it three ways. A score that survives paraphrase is a different number from the one on your dashboard."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Engineering & craft",
+      "blurb": "Ship the delta, evict the stale, delegate the legwork.",
+      "articles": [
+        {
+          "title": "Nuxt 4.7: Nitro v3 is one dependency away",
+          "source": "Nuxt blog",
+          "url": "https://nuxt.com/blog/v4-7",
+          "why": "Adding a single package to your dependencies moves your server to the runtime Nuxt 5 is built on, with a 33 to 44 percent throughput jump in their benchmarks.",
+          "body": [
+            "Put nitro in package.json and Nuxt 4.7 builds with Nitro v3, the runtime Nuxt 5 is built on. On their 170-page benchmark, the same code served 33 percent more requests per second on the home page, 926 to 1,236, and 44 percent more on a page with a thousand links, with identical HTML. On the starter, server output fell from 2.17 MB to 1.23 MB and first load from 80.4 kB over 14 requests to 66.3 kB over three.",
+            "The migration is mostly the shim. nitroLegacy keeps h3 and nitropack imports, the Nitro v2 auto-imports, useRuntimeConfig(event) and event.node working; flip it to false to list what still depends on it. Two things break regardless. Route rules match differently, so /blog/* now also covers /blog/2026/hello, and a rule with two wildcards stops the build. Server imports no longer fall back to Nuxt's own dependencies, so a package you never declared fails at dev time.",
+            "Also in this release: experimental WebMCP, which offers your app's actions to agents in the browser, and template diagnostics that catch a NuxtLink pointing at a route that does not exist. Try Nitro on a branch; the throughput is real, and route-rule semantics are the quiet breakage."
+          ]
+        },
+        {
+          "title": "Firefox 161 lands dictionary compression, and every engine but Safari now has it",
+          "source": "MDN",
+          "url": "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/161",
+          "why": "For a Nuxt site with repeat visitors and frequent deploys, this is the largest transfer-size lever left, and it is now available on most of your traffic.",
+          "body": [
+            "Compression Dictionary Transport shipped in Firefox 161. A server marks a response with Use-As-Dictionary; on a later match the browser names the stored dictionary in an Available-Dictionary header, and the server replies compressed against those exact bytes using dcb for Brotli or dcz for Zstandard. Chrome and Edge have had it since 130, so with Gecko this covers most of the web. Published samples: a YouTube player bundle 90 percent smaller than Brotli alone week over week, an older CNN React bundle 63 percent smaller.",
+            "The catch is that it is a delivery change, not a build flag. The response has to be cacheable, because no-store, no-cache and max-age=0, must-revalidate disqualify it as a dictionary. It must vary on Accept-Encoding and Available-Dictionary, and cross-origin needs CORS. Matching is by URL pattern, which collides with the habit of putting a content hash in every bundle name: your match pattern has to cover the hashed names or the dictionary never applies.",
+            "Treat it as progressive enhancement. Keep the normal compressed response, generate dictionary variants at build time, and only measure repeat visits, since a first-time visitor has nothing to compress against. Safari has announced nothing, so this is not a dependency."
+          ]
+        },
+        {
+          "title": "Delegate the legwork: two thirds off a coding agent with a small local model",
+          "source": "arXiv",
+          "url": "https://arxiv.org/abs/2611.33098",
+          "why": "Cost is a property of your harness, not the model's price per token, and a model on your own GPU can take most of it.",
+          "body": [
+            "Delegent starts from the stock Claude Code harness and changes one thing: the frontier model still leads every task, but hands focused subtasks to a small model running on hardware you already own. Investigating code, running tests, searching a corpus. No router is trained, no model fine-tuned, so either side swaps freely.",
+            "With a 27B FP8 model, frontier cost on long-horizon coding fell 67 percent, on agentic search 59 percent, with no loss of task performance. A 2B model that fits on a laptop still cut coding cost by 66 percent. Most of the saving comes from one short instruction that reserves the main coding decisions for the frontier model and leaves legwork to the small one, which is also what stops the 2B model from dropping tasks.",
+            "The limits are stated plainly: agent runs are non-deterministic, and the claim is no performance loss, not a gain. Different frontier models delegate differently, one uses subagents to save cost, another to check its own work. The pattern to steal: the expensive part of an agent is re-reading context for easy subtasks, and those are exactly the ones you can move off the frontier."
+          ]
+        },
+        {
+          "title": "Most of an agent's context is stale tool output",
+          "source": "arXiv",
+          "url": "https://arxiv.org/abs/2611.26980",
+          "why": "The paper names Hermes in its first sentence, and its central measurement applies to any agent harness you build: 64 percent of final-history tokens were already superseded.",
+          "body": [
+            "Contexture begins from a measurement. In recorded agent sessions, 64 percent of the tokens in the final history were outputs that a later tool call had already superseded. Read the file, then read it again after editing it. Run the tests, then run them again. Each earlier observation stays in the prompt, re-read every step, holding a place in shared KV cache.",
+            "The design keeps the harness's full history intact and maintains a separate execution context for the model. Tool-execution information identifies what has been superseded; global visibility into shared cache pressure and prefix residency decides whether dropping something is worth the cached computation it destroys. No extra model calls, no training, no changes to harness logic.",
+            "Across two models, two harnesses and two benchmarks it lifted throughput under SLO by 20 to 73 percent over the best of no eviction, harness compaction and two dedicated baselines. Accuracy rose 1.4 points on average with a worst case of 3.7 down, where observation masking lost 3 to 28. The transferable rule: supersession is a better eviction signal than recency, because a re-run tool call tells you exactly what is dead."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Strategy & industry",
+      "blurb": "The playbook becomes the product, and the review agent becomes the runbook.",
+      "articles": [
+        {
+          "title": "MCP turns two and grows a work queue",
+          "source": "Claude / Anthropic",
+          "url": "https://claude.com/resources/articles/skills-over-mcp-tasks-and-more",
+          "why": "If you maintain a tool or connector, the distribution unit just changed from an endpoint to an endpoint plus a written workflow.",
+          "body": [
+            "Three protocol changes, one of them a distribution channel. Skills over MCP is in public beta: a server can publish playbooks beside its tools, Claude loads one only when needed, and skills update with the server, so users install nothing. Shopify uses it to help build and update a merchant's store, HubSpot for onboarding, Atlassian for organisational context.",
+            "Tasks and Elicitation are now generally available. Tasks let a server run a long operation, or a full agent loop, while Claude keeps working and collects the result later from a durable handle. Elicitation lets a server pause mid-call and ask for input by form or link, which is how Supabase confirms costs before creating a paid project and how GitHub makes you type a repository name before an agent deletes it. The spec bars servers from requesting passwords, keys or payment credentials through those forms.",
+            "Anthropic puts MCP at more than 700 million monthly SDK downloads and over 10,000 connectors in Claude. Its own numbers. The direction matters: when the playbook ships with the tool, you compete on the workflow rather than the endpoint. The cheapest thing you can do this week is write down the procedure your tool assumes."
+          ]
+        },
+        {
+          "title": "Eleven times the pull requests, no human review, and what it cost",
+          "source": "The Pragmatic Engineer",
+          "url": "https://newsletter.pragmaticengineer.com/p/how-software-engineering-is-changing",
+          "why": "This is the honest field report from the world Claude Ship is selling into, including the two bugs the review agent missed.",
+          "body": [
+            "Neil Kakkar moved from PostHog to Tano, an AI-native startup, and now ships 200-plus pull requests a month against 8 to 20 before, an elevenfold jump. Human review is gone. A code review agent he built runs in CI on every pull request and is usually the only review; median time to merge is under an hour, and the revert rate is six times lower because the team fixes forward instead of reverting.",
+            "The failures are the useful part. A reporting change parsed currency minor units as floats and multiplied by 100, which is wrong for the Bahraini dinar and its thousand fils, and a utility that already did this correctly existed. A blocking migration on a 25 GB, six-million-row table stopped the ingestion pipeline. Both are now rules in the review agent's prompt, which is quietly becoming the team's operational runbook.",
+            "The costs are human: thrashing between several agent sessions, lost shared context now that nobody reads everyone's diffs, and a bus factor of one per product area, which he argues AGENTS.md files partly fix. It is one engineer's self-reported data at a ten-person company, and also what the next two years look like before tooling catches up."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Wildcard",
+      "blurb": "A national chip story, and a scheduler that guesses what matters.",
+      "articles": [
+        {
+          "title": "An Indonesian model claims to run on the Merah Putih chip prototype",
+          "source": "Ekoin",
+          "url": "https://www.ekoin.co/ragam/teknologi/startup-lokal-luncurkan-model-bahasa-indonesia-pertama-berbasis-chip-merah-putih/",
+          "why": "The technical claim is unverifiable, but the policy around it, an AI bill and a copyright revision, will reach anyone building software here.",
+          "body": [
+            "An unnamed Indonesian startup launched what it calls the first Indonesian language model trained and run on the Merah Putih chip, a prototype from a Peruri and ITB collaboration. The pitch is localisation: cultural context, legal terminology and regional languages, aimed at public services, bank customer service and legal research, with trials from the first quarter of 2027.",
+            "The politics is the substance. The deputy communications minister framed it as digital sovereignty, alongside a push to put an AI bill in the 2027 legislation programme and incentives for anyone using domestic silicon. Observers quoted in the piece note the chip is still a prototype with no industrial-scale production, so commercial use is limited to research and small pilots. A professor from ITS also warned that AI datacentre expansion in Java is running into water and electricity limits.",
+            "Read it as a policy signal rather than a technical result. The company is unnamed, no benchmarks are published, and the chip cannot be bought, so treat every performance claim as a press-release claim. What is moving is the law: an AI bill and a copyright revision covering AI outputs. That will land on your desk. Single source, and a launch event."
+          ]
+        },
+        {
+          "title": "A scheduler that infers which threads matter, now on headsets and in Meta's fleet",
+          "source": "Igalia",
+          "url": "https://blogs.igalia.com/changwoo/sched-ext-a-sketch-of-the-scx-lavd-scheduler-part-3/",
+          "why": "sched_ext turns the Linux scheduler into a loadable program, which means a misbehaving workload is now a scheduling problem you can fix without a new kernel.",
+          "body": [
+            "scx_lavd is a Linux CPU scheduler written in BPF on sched_ext, about 12,100 lines and 904 commits, sponsored by Valve and Meta, now deployed on the Steam Frame headset and inside Meta's datacentres. It started with strace on SteamOS: roughly 80 percent of syscalls were futex, because Wine maps Windows synchronisation onto them, so a game is mostly threads waiting on each other.",
+            "So it infers urgency instead of asking for it. Three signals per task: how often it sleeps waiting on something external, how often it wakes other tasks, and how long it runs. Latency criticality is the product of the two frequencies divided by runtime, log-compressed and squared, and it propagates along the wake graph in both directions with hard caps so a cycle cannot inflate itself. That number becomes a virtual deadline, a time slice and the right to preempt.",
+            "The wider consequence: since sched_ext merged, a scheduler is a program you can load, so a workload that thrashes can be met with a different scheduler rather than a different kernel. His earlier advice still applies, measure before swapping. The option now exists, which is new."
+          ]
+        }
+      ]
+    }
+  ]
+}

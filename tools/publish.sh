@@ -29,6 +29,26 @@ chapters = [n for n in z.namelist() if n.startswith("OEBPS/") and n.endswith(".x
 print(f"   ok: {len(chapters)} xhtml pages, {len(open(p,'rb').read())/1024:.0f} KB")
 PY
 
+echo "== link check (warn only)"
+python3 - "issues/$DATE.json" <<'PY'
+import json, sys, urllib.request, concurrent.futures
+d = json.load(open(sys.argv[1]))
+urls = [a["url"] for s in d["sections"] for a in s["articles"]]
+def check(u):
+    req = urllib.request.Request(u, method="GET",
+                                 headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64)"})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return u, r.status
+    except Exception as e:
+        return u, getattr(e, "code", str(e)[:40])
+with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+    for u, code in ex.map(check, urls):
+        if code != 200:
+            print(f"   WARN {code} {u}")
+print(f"   {len(urls)} links checked")
+PY
+
 echo "== commit + push"
 git add -A
 if git diff --cached --quiet; then

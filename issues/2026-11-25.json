@@ -1,0 +1,202 @@
+{
+  "date": "2026-11-25",
+  "headline": "Cheap depth: models, databases and e-readers all get more out of less",
+  "intro": "This batch is about squeezing capability out of fixed resources. A model that reasons deeper by re-running its own layers, an inference engine that gets 2.5x by entropy-coding weights instead of buying VRAM, a Postgres release that finally lets you repack a hot table without a maintenance window. The counter-current is the nginx and Nuxt RCE week, plus the memory-price squeeze starting to show up in e-reader prices.",
+  "sections": [
+    {
+      "name": "Today's lead",
+      "blurb": "A lab proposes a shared progress metric, and the default web stack has a bad week.",
+      "articles": [
+        {
+          "title": "Perplexity and Intelligence",
+          "source": "OpenAI",
+          "url": "https://openai.com/index/perplexity-and-intelligence",
+          "why": "It is the first concrete proposal for an industry-wide pacing metric, and its own caveat list tells you what it cannot see.",
+          "body": [
+            "Jakub Pachocki argues that AI progress is best understood as training better compressors, and that perplexity, equivalently cross-entropy loss, should become the shared number labs publish and agree limits on. OpenAI released its own internal perplexity series back to GPT-3.5, which is unusual transparency: 0.99 log-perplexity for the model behind the original ChatGPT, 0.91 for GPT-4, and a model at roughly 0.76 that he says started producing genuine results on open math problems.",
+            "The mechanism is why this is interesting. Perplexity is measurable before the capabilities it predicts appear, so in principle you could set a limit and stop before an emergent capability shows up in evals. That is a different kind of control than red-teaming, which is always after the fact.",
+            "The hole is in his own caveats. Perplexity does not account for chain-of-thought or RL gains, and those are where most recent capability jumps came from. A limit on pretraining loss would not bind the part of the stack that is actually moving fastest. If this becomes a norm, expect model cards to carry loss numbers, and read 'we are under the agreed limit' as a claim about one layer only."
+          ]
+        },
+        {
+          "title": "nginx2root: five new nginx vulnerabilities, and what the proxy does and does not cover",
+          "source": "Cloudflare blog",
+          "url": "https://blog.cloudflare.com/nginx2root/",
+          "why": "nginx fronts nearly everything you deploy, and Cloudflare's proxy is shielding you from some of these bugs, not patching them.",
+          "body": [
+            "On November 18 F5 and nginx.org disclosed ten nginx vulnerabilities. Five of them, published by Xint as nginx2root, are memory corruption flaws that an unauthenticated attacker can use to crash a worker or run commands. Xint also found a Linux kernel bug that turns that foothold into root on the host, including from inside a container. The remaining bugs need specific configuration: the HTTP/2 issue CVE-2026-123007 has been present since 1.9.5 in 2015, and the resolver and mail proxy flaws only bite certain configs.",
+            "Cloudflare's post is the most useful writeup because it separates 'the edge is fine' from 'your origin is fine'. For proxied hostnames the edge terminates HTTP/2 and HTTP/3 and opens its own connection to your origin, so attacker frames never reach your nginx. That covers the two worst HTTP bugs. It does not cover the resolver or mail proxy paths.",
+            "Patch to 1.30.7 or 1.31.9 and restart. The same week brought ruby2shell in default Rails and Sinatra apps, phpAfterShell in PHP's default session handler, and Java4Shell in OpenJDK's Base64 decoder, all with WAF coverage rushed out. The pattern is worth internalising: the thing that gets owned is rarely your code, it is a default configuration in something you inherited."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AI & research",
+      "blurb": "Depth instead of parameters, and the recursion datapoint.",
+      "articles": [
+        {
+          "title": "GLM-5.4: Toward Generalized Coding with Our First Loop Transformer",
+          "source": "Z.ai",
+          "url": "https://z.ai/blog/glm-5.4",
+          "why": "It is the clearest public case for scaling depth instead of parameter count, and it comes with the systems work that makes the trick affordable.",
+          "body": [
+            "GLM-5.4 is a 750B model that runs 28 of its layers twice. Because the looped layers share weights, the parameter count does not change while the effective depth does, and Z.ai claims intelligence comparable to 2T to 3T parameter models. They did not pretrain a looped model from scratch, which the paper notes usually loses to unshared models at equal compute; they converted an already-trained GLM-5 base and continued training it.",
+            "Three details make it work at 1M context. Per-token gates per iteration keep activation norms from blowing up. A hybrid KV cache lets the second pass reuse the sparse KV the first pass selected while keeping its own sliding window, so an extra loop costs one window of cache rather than a full context. And the second pass reuses the first pass's sparse attention indices, adding no indexing overhead.",
+            "The most useful number is the token one: on GPQA-Diamond and MMLU-Pro, average output length drops 10 to 14 percent. Some reasoning moved out of the visible chain of thought and into loop depth, which is cheaper to serve and worse to audit. A 30B iso-parameter run with about 10 percent more training compute showed clear gains."
+          ]
+        },
+        {
+          "title": "Introducing Gemini 4 Neon",
+          "source": "Google DeepMind",
+          "url": "https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-neon",
+          "why": "Three dollars in, fifteen out, one million context and a 95 percent cache discount is a price shape you can design a product around.",
+          "body": [
+            "Neon lands third overall on the Artificial Analysis index at 61, second on the Vals Index at 70.9 percent, and second on steerability in the new Agent Arena Index. Google leans hard on agent-shaped evals: top on Zapier's AutomationBench, top on a long-horizon vending simulation, and 70.5 percent on Terminal-Bench Science.",
+            "The interesting part is not the ranking, it is the packaging. A fast tier at 3 dollars per million input and 15 per million output, with cached input at 0.15, a 1M-token window, and a claim of the lowest fabrication rate Google has measured in its own Antigravity testing. That cached-input price is a twentieth of standard.",
+            "That ratio changes architecture more than model choice does. If a cached prefix costs five percent of fresh input, the expensive decision stops being which model and becomes how much of your prompt is stable. Put the system prompt, tool schemas, style guide and corpus up front in a fixed order, and treat anything volatile as the tail. Teams that keep rewriting their prefix pay twenty times more for the same tokens."
+          ]
+        },
+        {
+          "title": "MINE: Entropy-coded Memory-efficient Inference for Large Language Models",
+          "source": "arXiv",
+          "url": "https://arxiv.org/abs/2611.09424",
+          "why": "A 2.5x speedup on consumer GPUs from better compression, not bigger hardware, is the right direction while RAM prices are climbing.",
+          "body": [
+            "Single-stream local inference is memory-bandwidth bound: every weight gets streamed from memory once per generated token, and there is no batch to hide it behind. MINE attacks that with lossless entropy coding. Its dtANS-LLM scheme exploits the fact that weight distributions stay non-uniform even after quantization, and auto-tunes the compression-ratio-versus-decode-cost trade per tensor and per GPU.",
+            "The result on Llama 3.1 8B with a 2.1-bit checkpoint is 2.52x over the fastest baseline on an RTX 4060 Ti and 1.48x on an RTX 5090, at effective rates of 2.24 and 3.43 bits per weight. It ships as a vLLM plugin, so it slots in rather than replacing the stack.",
+            "The framing matters more than the numbers. For two years the local-inference story has been quantization: fewer bits, some quality loss, faster. This says the bits you keep can also be stored more cheaply, losslessly, and that decode compute is now the knob instead of quality. If you run models on one GPU, the ceiling is bytes moved per token, and there is still slack in that number."
+          ]
+        },
+        {
+          "title": "Independent Assessment of AI R&D Acceleration at Anthropic",
+          "source": "METR",
+          "url": "https://metr.org/blog/2026-11-05-anthropic-ai-rd-acceleration-assessment",
+          "why": "This is the recursion datapoint that makes every other AI item on this page legible, and it is the one claim worth keeping in your head.",
+          "body": [
+            "METR spent August to October inside Anthropic with access to pretraining metrics, RL runs, compute allocation, internal model scores and staff interviews. Their conclusion: Anthropic is likely improving capability on well-specified tasks at roughly twice the March 2024 to October 2025 rate, with a plausible range of 1.3x to 3x, and a majority of that acceleration is probably attributable to using AI to do R&D.",
+            "Two caveats deserve equal billing. Anthropic redacted most of the evidence METR found most informative, so the public is trusting METR's judgment rather than checking their work. And METR explicitly says it may be missing bottlenecks, which is the difference between 'faster' and 'compounding'.",
+            "The practical read for someone building software: the rate at which the tools under you improve just roughly doubled, and the doubling is itself partly machine-driven. That argues for architecture that survives model swaps, thin abstractions over specific providers, and evals you can rerun when a model changes underneath you, rather than prompts tuned to today's quirks."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Engineering & craft",
+      "blurb": "Postgres gets operational controls, and one Nuxt patch you probably need.",
+      "articles": [
+        {
+          "title": "PostgreSQL 19 release notes",
+          "source": "PostgreSQL",
+          "url": "https://www.postgresql.org/docs/current/release-19.html",
+          "why": "REPACK CONCURRENTLY removes a maintenance-window ritual, and JIT defaulting to off can quietly change your query plans after upgrade.",
+          "body": [
+            "The headline is REPACK, which replaces VACUUM FULL and CLUSTER with one command. With CONCURRENTLY it rebuilds a bloated table while reads and writes continue, capturing ongoing changes through logical decoding, then takes a brief exclusive lock to swap files.",
+            "Read the fine print before scheduling it. It needs a replica identity or suitable index, an extra replication slot for the duration, temporary disk for a copy of the table plus indexes plus a sort file, and it fails if more than about 104 million tuples are updated or deleted while it runs. It is also not MVCC-safe afterwards: snapshots taken before the repack can see the table as empty.",
+            "The change that will bite people silently is JIT going off by default, because the cost model that triggered it was unreliable. If you run large analytical queries, set it back on per role or database. The rest is quality of life: WAIT FOR LSN gives read-your-writes on standbys, ON CONFLICT DO SELECT gives you get-or-create in one round trip, pg_plan_advice lets you pin a plan without touching application code, and foreign key checks got fast enough to nearly double bulk insert throughput."
+          ]
+        },
+        {
+          "title": "Nuxt UI 4.12.1 security release (GHSA-x9jw-j844-v24h)",
+          "source": "Nuxt UI",
+          "url": "https://ui.nuxt.com/docs/releases/v4.12.1",
+          "why": "If any of your Nuxt apps render user or LLM markdown server-side, this is remote code execution on your server.",
+          "body": [
+            "The advisory is short and specific: untrusted markdown rendered through Nuxt UI components could execute code on the server. You are affected if your server renders markdown that users or an LLM can write, through comark, @nuxtjs/mdc or @nuxt/content. Sites that only render their own files are not affected. Updating comark or mdc alone is not sufficient; the component renderer was the hole.",
+            "The mechanism is the usual one for this class of bug: a prop that should be data reached a renderer that treated it as a template. Components were accepting an as value or an icon that was a plain object with a template string, or a forged VNode, and compiling it. An as of script or iframe now falls back to the default element.",
+            "The lesson generalises past Nuxt. Any pipeline where an LLM writes markup that your server renders is an injection surface, and the dangerous input is not the visible text but the structural props you accept along with it. Patch to 4.12.1, then audit where model output enters your render path, and keep a list of the props that may carry code."
+          ]
+        },
+        {
+          "title": "The bulk update that was fast until nobody ran ANALYZE",
+          "source": "TypeGraph",
+          "url": "https://typegraph.dev/blog/the-update-that-needed-analyze/",
+          "why": "This is the exact failure mode of a multi-tenant Postgres schema, written up with the losing case included.",
+          "body": [
+            "An import that was linear to 5,000 rows took 131 seconds at 10,000 and 482 at 20,000. Running ANALYZE first brought it to 22 seconds with no data or query change. The cause: all nodes live in one table keyed by graph and kind, autovacuum only re-analyses after 50 rows plus 10 percent of the table, and on a million-row table a 20,000-row import never crosses that threshold. For a kind the planner has never seen in that graph, it estimates one row.",
+            "One row means a nested loop: walk that kind's index range, run the candidate subquery once per row. At 3,000 rows that was 3,000 loops of 1,500 rows each.",
+            "The fix is clever: stop putting graph and kind on the outer table as constants, and join to a DISTINCT key set instead, because Postgres will not flatten a DISTINCT subquery and so cannot push the constants back down. The cost is real and the post shows it. When the planner overestimates instead of underestimating, it picks a hash join against a sequential scan, and a one-row update goes from 1ms to 367ms. Bounded linear pain traded for catastrophic quadratic pain, which is usually the right trade."
+          ]
+        },
+        {
+          "title": "Swapping pgvector for turbopuffer made our whole database faster and cheaper",
+          "source": "Modem",
+          "url": "https://modem.ai/blog/pgvector-to-turbopuffer",
+          "why": "The counterintuitive bit is that shared Postgres memory makes your smallest customers pay for your biggest ones.",
+          "body": [
+            "Modem stores embeddings in Postgres and searches them to answer 'has any customer said something like this before'. Small customers waited up to ten seconds while the biggest ones, with more data to scan, got answers immediately. Same query, same code. The difference was cache residency: embeddings were large enough that only a slice fit in shared memory, and the busy tenant kept its rows hot while pushing quiet tenants' rows to disk.",
+            "Adding an HNSW index made it worse, because the index is itself memory-resident and competes for the same pool. They moved vectors to turbopuffer, kept Postgres for everything else, and got p90 down 76 percent and p99 down 85 percent. Postgres CPU dropped 62 percent, cache misses 82 percent, slow queries 95 percent. They downsized the Neon instance, and the total storage bill fell about 10 percent even after adding a vendor.",
+            "The transferable point is that per-tenant latency in a shared database is a function of other tenants' traffic, so aggregate p50 hides it entirely. If you build similarity search into a multi-tenant Postgres, measure p99 by tenant size from day one, and treat memory as a fair-share problem rather than a tuning problem."
+          ]
+        },
+        {
+          "title": "Thankful for Dolt performance",
+          "source": "DoltHub",
+          "url": "https://www.dolthub.com/blog/2026-11-24-thankful-for-dolt-performance/",
+          "why": "A Go database went from 12 percent slower than MySQL to 25 percent faster, and almost none of it was algorithmic.",
+          "body": [
+            "A year ago Dolt, a version-controlled MySQL replacement, was 12 percent slower than MySQL on Sysbench and managed 40 percent of its TPC-C throughput. Now it is 25 percent faster on Sysbench and TPS went from 36 to 71.6. The write benchmarks dropped 40 to 59 percent in latency, reads about 40 percent.",
+            "The wins are unglamorous and therefore instructive. Passing structs like val.TupleDesc and tree.Node by pointer instead of by value recovered up to 20 percent, because the runtime was spending its time in duffcopy copying whole structs. A nodeCache stored as a fixed array rather than a slice cost another 13 percent, since Go copies arrays on every pass. Switching fsync to fdatasync bought about 30 percent on writes by not flushing metadata that did not change. Lazy flush added 25 percent. A scheduler that tells the garbage collector to wait until load drops added 10 percent on TPC-C.",
+            "If a Go service of yours feels slow, this is the checklist: what are you copying, how often are you forcing a full sync, and is background maintenance running during peak. None of that requires a rewrite."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Strategy & industry",
+      "blurb": "How AI products actually get priced, and what happened to Indonesian seed money.",
+      "articles": [
+        {
+          "title": "The new rules of pricing AI products",
+          "source": "Chargebee",
+          "url": "https://www.chargebee.com/blog/the-new-rules-of-pricing-ai-products/",
+          "why": "Seat pricing does not just stop tracking value for AI features, it moves in the wrong direction while you are not looking.",
+          "body": [
+            "The argument from Chargebee's product lead is blunt: seat count used to be a decent proxy for value, and for AI products it is now anti-correlated. A customer who automates work with an agent needs fewer human seats to do the same job, so seats fall exactly as usage and inference cost rise. You lose the value metric at the moment cost goes up.",
+            "The data they cite: 51 percent of recurring-revenue companies now combine subscriptions with usage or outcome pricing, 75 percent keep a subscription in the mix, and average gross margin on AI products was 53 percent this year against 45 percent last. The pricing unit ladder they describe runs seats, tokens, credits, agent activity, outcomes, with each rung requiring less explanation on the invoice.",
+            "The rollout pattern is the actionable part. Figma shipped promotional AI credits in December, watched usage for three months, then priced in March. Give the capability away inside the existing plan, find where value concentrates, then charge for it. If you are adding an AI feature to something people already pay for, that sequence costs you nothing and buys you the data you need."
+          ]
+        },
+        {
+          "title": "Indonesian tech funding up 111 percent, but one deal accounts for 74 percent",
+          "source": "B2B Tech Asia Review (Tracxn data)",
+          "url": "https://www.b2btechasia.com/review/pendanaan-startup-teknologi-indonesia-9m-2026-tracxn",
+          "why": "Seed rounds went from 23 to 4 this year, which tells you who will be hiring and buying local software in two years.",
+          "body": [
+            "Tracxn puts Indonesian tech funding at 365 million dollars for January to September, up 111 percent. Strip out Ajaib's 270 million dollar Series C and the number is about 95 million, roughly 45 percent below last year. Rounds fell 56 percent to 14, active investors to 27 of which 20 are foreign, there were no tech IPOs, and exactly one acquisition.",
+            "The line that matters is seed: 4 rounds worth 2 million dollars, down from 23 rounds. Early-stage funding fell 16 percent to 83 million while late-stage took 77 percent of the total. That is a barbell, capital concentrating in a handful of proven companies and almost nothing entering at the bottom.",
+            "The consequences land in about two years. Fewer seed-funded startups means fewer local companies buying tools, fewer local engineering teams to hire from, and less competition if you are already shipping. It also means the buyer with budget is an enterprise or a foreign company, so software aimed at Indonesian startups is aimed at a shrinking market. Build for export, or build things that cut a mid-size company's costs, and note that this is one research firm's dataset reported second-hand."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Wildcard",
+      "blurb": "The AI boom shows up in e-reader prices, and colour e-paper finally gets a real spec bump.",
+      "articles": [
+        {
+          "title": "E Ink cuts sales growth forecast, citing memory chip costs",
+          "source": "Taipei Times",
+          "url": "https://www.taipeitimes.com/News/biz/archives/2026/11/13/2003867634",
+          "why": "The RAM squeeze from AI datacentres is landing on e-reader price tags, so the cheap upgrade you are waiting for is not coming soon.",
+          "body": [
+            "E Ink Holdings cut its full-year revenue growth forecast for the second time, to 9 percent, and the chairman's explanation was unusually direct. Consumer demand is down because surging memory chip costs are driving retail prices up. His line: we have fallen victim to the AI boom. Last quarter net profit fell 37 percent year on year and gross margin slipped from 55.9 to 52.2 percent.",
+            "The mechanism is capacity reallocation rather than any problem with e-paper. Memory fabs are chasing AI accelerator demand, so commodity DRAM and NAND for a 150 dollar reader get scarcer and dearer. E Ink's own mix is shifting under it: IoT, meaning electronic shelf labels and signage, is growing 35 percent and is about to overtake consumer for the first time.",
+            "So the panel technology is improving while the devices get more expensive, which is an odd combination to shop in. If you were waiting for a cheaper successor to your reader, the component wind is against you for at least another year. Buy the device you want when you want it, and treat the e-reader as a five-year object rather than something to upgrade with the phone cycle."
+          ]
+        },
+        {
+          "title": "When will we see E Ink Kaleido 4 e-readers?",
+          "source": "Good e-Reader",
+          "url": "https://goodereader.com/blog/e-paper/when-will-we-see-e-ink-kaleido-4-e-readers",
+          "why": "Colour resolution going from 150 to 300 PPI is the first colour e-paper change that would actually matter for reading charts and PDFs.",
+          "body": [
+            "Kaleido 4 was announced in October and the first device, Hanvon's M10C III, is China-only for now. The headline spec is colour resolution doubling to 300 PPI from 150, which matters far more than the colour count for anything with small type: charts, tables, PDFs, textbooks. The panel also claims 15 percent more white reflectance, 50 percent more contrast, 18 frames per second video, and a new oxide TFT backplane that makes page turns 27 percent faster on the M10C II.",
+            "One claim needs care. Good e-Reader reports 40,000 colours; The Verge, covering the same announcement, says the panel still produces 4,096. Kaleido works by putting a colour filter array over a monochrome panel, so the honest comparison is not against LCD but against the older Kaleido, where the visible difference is graininess and contrast rather than palette size. Treat the colour count as unconfirmed until panels ship.",
+            "Timing: international readers in 2027, with Kobo and PocketBook likely first and a colour Kindle Scribe possibly 2028. For a monochrome reader like yours, none of this is an upgrade path, but it is the first sign in years that colour e-paper is moving on resolution rather than on marketing."
+          ]
+        }
+      ]
+    }
+  ]
+}

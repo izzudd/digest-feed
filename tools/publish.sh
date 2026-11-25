@@ -43,7 +43,7 @@ fi
 echo "== deploy"
 TOKEN="$(grep -oP '(?<=^MCP_COOLIFY_API_KEY=).*' /opt/data/.env)"
 API="https://cool.izzudd.my.id/api/v1"
-RESP="$(curl -s -H "Authorization: Bearer $TOKEN" \
+RESP="$(curl -s -X POST -H "Authorization: Bearer $TOKEN" \
         -H "Accept: application/json" \
         "$API/deploy?uuid=$APP_UUID&force=false")"
 DEP="$(printf '%s' "$RESP" | python3 -c "import sys,json;print(json.load(sys.stdin).get('deployments',[{}])[0].get('deployment_uuid',''))")"

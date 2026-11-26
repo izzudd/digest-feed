@@ -1,0 +1,191 @@
+{
+  "date": "2026-11-27",
+  "headline": "Writing the code was the easy part",
+  "intro": "Today's batch keeps landing on the same seam: generation got cheap, and proof did not. Anthropic ported its busiest API to Rust and spent most of the project building a verifier; a new benchmark shows policy-prompted agents folding under a good story; Cloudflare turned every zone into something an agent can query. Plus open weights that ship their own training pipeline, and a firmware note for your e-reader.",
+  "sections": [
+    {
+      "name": "Today's lead",
+      "blurb": "The two things that changed how software gets built and found today.",
+      "articles": [
+        {
+          "title": "Anthropic moved the Messages API to Rust, and the verifier was the project",
+          "source": "Anthropic",
+          "url": "https://www.anthropic.com/research/migrating-api-to-rust",
+          "why": "This is the shape of every serious rewrite you will do with an agent: the porting is a week, the trusting is the rest.",
+          "body": [
+            "Anthropic's Messages API is the path every customer request and every Claude Code session takes into a model. Traffic grew roughly 1,800 times between early 2024 and this fall, and the Python implementation had accumulated shared dependencies with research and inference code. They moved it to Rust. Claude wrote a first version of the core request path in about a week.",
+            "The interesting part is why that week did not ship anything. They had no way to verify parity. The Python service kept changing during the migration, so the target moved. Claude answers nondeterministically, so a different response is not automatically a bug. And they cannot read customer requests, so they could not just diff inputs and outputs offline. Their answer was to make production the oracle: replay real traffic through both implementations, compare what can be compared, and dispatch agents at the divergences.",
+            "The result is about 70% less CPU per request and roughly 20% lower median time to first token, with no downtime and no feature freeze. The transferable lesson is not \"rewrite in Rust\". It is that for a live system, the work product is the differential harness, not the new code. If you cannot say what equal means for your service, an agent will happily produce a fast, plausible, wrong replacement."
+          ]
+        },
+        {
+          "title": "Cloudflare gives every zone a search endpoint for agents",
+          "source": "Cloudflare blog",
+          "url": "https://blog.cloudflare.com/search-for-agents/",
+          "why": "Your docs and blog become queryable by agents without you writing a retrieval stack, which changes what \"good site structure\" means.",
+          "body": [
+            "Search for Agents is a toggle in the zone dashboard. Flip it and Cloudflare creates an AI Search instance for your domain, crawls and indexes the content, and exposes a search endpoint at /.well-known/search. Enable it on a free plan and it works, within AI Search limits.",
+            "The details matter more than the toggle. The endpoint takes natural-language queries over GET or the HTTP QUERY method, and returns relevant passages in Markdown rather than a synthesized answer, so the calling agent uses its own model. Cloudflare also advertises the endpoint inside your HTML with an agent:instructions meta tag, and in Markdown responses when Markdown for Agents is on. Access still runs through your bot management, AI Crawl Control and WAF, which is the part worth getting right: the index is public, but who may query it is a policy decision you now own.",
+            "Practically, this splits a site into two audiences with different needs. Humans want navigation and persuasion; agents want chunks that survive being retrieved out of order, with headings that name their subject and no critical fact buried in an image. It also gives you a cheap retrieval layer for your own side projects, pointing an agent at your docs instead of stuffing them into context."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AI & research",
+      "blurb": "Where capability is coming from, and where it still leaks.",
+      "articles": [
+        {
+          "title": "GPT-6 designed proteins that bound in a wet lab, using reasoning and code alone",
+          "source": "OpenAI",
+          "url": "https://openai.com/index/gpt-6-models-demonstrate-intrinsic-protein-design-capabilities/",
+          "why": "A general model absorbing a specialist toolchain is the pattern to watch for in every domain you work in, including your own CV niche.",
+          "body": [
+            "OpenAI published a preprint and wet-lab results arguing that the GPT-6 family can design protein structures and sequences without calling specialised biology models, using reasoning plus ordinary code. An internal research model matched or beat specialist models on several computational protein tasks, and prompts could pin down constraints from a single inter-atomic bond up to overall fold shape.",
+            "The lab work, done with Onava, is the part that counts. Of 322 designed minibinders across five targets, 35 showed binding, about 11%. Redesigned antibody loops retained binding in 128 of 182 small antibodies and 179 of 272 fragments. OpenAI is explicit that this is proof of concept, not end-to-end de novo design, that structure prediction from sequence is still a weakness, and that the original RFdiffusion work reported higher hit rates.",
+            "Read it as a statement about interface, not biology. Specialist models each demand their own input format and cannot absorb a new constraint without retraining; a general model takes the constraint in prose and writes the glue code. That is the same reason agents ate half of DevOps tooling. The specialist does not disappear, it becomes a function the general model calls when it decides to."
+          ]
+        },
+        {
+          "title": "The research agent that keeps a model of the problem instead of the codebase",
+          "source": "arXiv",
+          "url": "https://arxiv.org/abs/2611.25357",
+          "why": "It explains a failure you have probably watched: an agent editing code in circles because it never wrote down what it thought was wrong.",
+          "body": [
+            "Pro2 Agent starts from an observation about autonomous ML research. Agents usually iterate on a codebase, which works on easy tasks and stalls on hard ones, because the agent never represents why it is failing. The paper moves the primary state from code to a Problem State: an explicit structure of which problems block success and which candidate solutions address them.",
+            "The loop is initialize from the task's resources and constraints, research the link between a suspected problem and a candidate fix, then run controlled hypothesis tests that raise or lower the importance of each. On the full MLE-Bench it matches the best reported medal rate of 70.7% under a 24-hour budget and reaches 76.0% with 48 hours, the highest reported on the complete benchmark. It also emits research notes per task.",
+            "The reusable idea is cheap to steal: before the agent edits anything, have it write and maintain a ranked list of blockers with evidence for each. That artifact is reviewable in a way a diff is not, and it stops the loop where the agent optimises a metric while misunderstanding the task."
+          ]
+        },
+        {
+          "title": "TACT-Bench: a good story beats a policy prompt",
+          "source": "arXiv",
+          "url": "https://arxiv.org/abs/2611.31756",
+          "why": "You run tool-using agents with real credentials; this measures how little a written policy buys you.",
+          "body": [
+            "TACT-Bench targets agents that operate under a policy. Each task gives the assistant a hidden rule set and gives the attacker a scenario, a persona and a manipulation tactic, then escalates based on how the agent responds. Crucially, every attack is paired with a benign lookalike, so refusing everything scores badly.",
+            "Across six models, TACT-Base raised the attack-induced failure rate by 17.53% over four existing attack baselines, and a variant that runs a harmless task first and the attack second added another 17.01%. The two defences they tested cut failures by only 8.35% to 9.41%, and did not reliably improve the paired score. The paper's conclusion is blunt: prompt-level policy is not enforcement.",
+            "If your agent can move money, delete rows or send mail, the fix is structural. Put the check in the tool layer, where a denied action is a failed call with a reason, not a sentence in the system prompt. And log the paired case, because an agent that refuses legitimate work is a different failure, not a safety win."
+          ]
+        },
+        {
+          "title": "A 0.8B watcher that tells a computer-use agent when to look",
+          "source": "arXiv",
+          "url": "https://arxiv.org/abs/2611.28947",
+          "why": "It turns the fixed post-action sleep in every browser or desktop agent into a measurable cost.",
+          "body": [
+            "Computer-use agents perceive in snapshots. Between taking a screenshot and acting on it, the interface keeps changing, so the agent reasons about a stale screen, waits on a spinner that already finished, or clicks a button that moved. NightWatch puts a small model between the agent and the screen and lets it answer fixed questions about what just changed, whether the pending action's target still exists, and whether the screen has settled.",
+            "The watcher never chooses actions. It can interrupt obsolete reasoning, void a stale action, or wake the agent the moment the interface is ready. With an unchanged large VLM, that cut non-reasoning wall-clock time by 33% and wasted time by 53% on OSWorld-Verified while success stayed level at 68.0% against 66.3%. On a dynamic web benchmark it lifted success from 39.5% to 44.2%. The honest limit: on interfaces that change faster than the agent can think, no observation is still valid, and timing cannot save you.",
+            "The design lesson generalises past screenshots. Perception has a schedule, and the schedule belongs to the harness, not to a sleep call. If you are scripting a browser, waiting for a semantic ready signal instead of a timer is the same idea with cheaper machinery."
+          ]
+        },
+        {
+          "title": "K2-Horizon ships the fleet and the factory",
+          "source": "arXiv",
+          "url": "https://arxiv.org/abs/2611.21003",
+          "why": "If you run local models, the 36B-A4B and the 7B are the interesting ones, and the release shows what an actually open model looks like now.",
+          "body": [
+            "The Institute of Foundation Models published the technical report for K2-Horizon, six models from a 0.9B dense up to a 375B mixture-of-experts that activates 23B parameters per token. Four of them share one 22-trillion-token corpus and recipe, which makes the size comparisons unusually clean. About 10 trillion of those pretraining tokens were synthetic, generated by pipelines the release also documents.",
+            "Two architectural bets are worth noting. Mixture-of-Value Attention applies sparsity to attention's value projections rather than the feed-forward block, and the 36B-A4B lands within a few points of their dense 32B on standard evals while activating roughly a seventh of the parameters. Uno, a set of lossless diffusion adapters, speeds decoding up to 2.2x without a separate draft model.",
+            "The flagship is competitive rather than dominant: it leads four comparable open models on Toolathlon-Verified at 65.3, beats both GPT-5.6 variants on a banking agent benchmark, and trails on expert science. What makes the release notable is the disclosure: intermediate checkpoints from every stage, data-construction pipelines, training code and logs. The moat is migrating from weights to the pipeline that produces them, and this is what losing that moat looks like in public."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Engineering & craft",
+      "blurb": "Systems work you can borrow from.",
+      "articles": [
+        {
+          "title": "Serving agents means switching a node from prefill to decode in six seconds",
+          "source": "arXiv",
+          "url": "https://arxiv.org/abs/2611.12304",
+          "why": "The serving stack you rent is tuned for chat, and agent traffic has a different shape every ten minutes.",
+          "body": [
+            "Agent workloads are lopsided in a way chat is not. A coding agent is mostly prefill: long context in, short tool calls out. A computer-use agent is mostly decode. As a fleet's mix shifts between those, the best split of prefill and decode nodes moves with it, which is why a static configuration leaves throughput on the table.",
+            "Evolving Infra decouples compute allocation from KV cache. Nodes run symmetric engines that can switch phase in place, and a shared pool keeps each node's KV readable by the others, so a switch does not throw away cached context. An online planner matches the split to the current mix, and eviction is guided by the harness's own context structure, dropping KV for branches no active subagent references.",
+            "The measured numbers are large: a phase switch takes 6.2 seconds on average versus 754 seconds to relaunch a node in NVIDIA's Dynamo, throughput runs 1.1 to 2.7 times higher, lost KV reuse drops 81% to 95%, and mean end-to-end latency improves up to 4.1x, with P95 time to first token up to 14x better. The code is open. Even if you never touch this layer, it explains why per-token prices for agentic traffic will keep falling faster than for chat."
+          ]
+        },
+        {
+          "title": "Postgres in a single binary, for the try-before-you-deploy case",
+          "source": "progrium",
+          "url": "https://progrium.xyz/articles/2026/single-binary-postgres/",
+          "why": "Half of self-hosting friction is \"install Postgres first\"; this deletes that step for evaluation and small tools.",
+          "body": [
+            "miniPG is one executable that embeds a real Postgres server and client. You point it at a directory, run a query, and that directory is the database. Stop using it and it is just files you can copy or delete. It is not Postgres compiled to a library, which is what PGlite does with WebAssembly; it is closer to the sqlite3 binary in ergonomics, except a full server is inside.",
+            "That distinction matters for adoption. Plenty of self-hostable software requires Postgres, so trying it means Docker plus a database plus something to keep the database running. miniPG lets a project say \"install this one thing\" and still serve apps that expect a connection string and a real server.",
+            "The honest caveats: single-node, no replication story, and it is new. Treat it as an evaluation and small-deployment tool, not a production posture. But the pattern is the point. SQLite won a decade of tooling because deploying it was indistinguishable from copying a file, and anything that narrows that gap for Postgres will pull the self-hosted ecosystem toward it."
+          ]
+        },
+        {
+          "title": "Ladybird reaches alpha, and there is a fourth engine to test against",
+          "source": "Ladybird",
+          "url": "https://ladybird.org/posts/alpha",
+          "why": "You ship Nuxt frontends; a fourth engine with its own CSS and layout implementation is a cheap way to find assumptions you did not know you had.",
+          "body": [
+            "Ladybird shipped its first alpha with installable builds for macOS and Linux, after years of requiring a source build. The engine is not a fork: HTML parsing, CSS, layout, the DOM, a JavaScript engine with an interpreter and a JIT, and WebAssembly are all implemented in-house by a non-profit, with a multi-process architecture and a codebase moving toward Rust.",
+            "For a web developer the useful features are unglamorous. It supports WebDriver and the Firefox DevTools protocol, so existing automation and inspection tooling can point at it. It runs CSS animations, including layout-affecting ones, on a separate thread from the main JavaScript thread, which is a different answer to a problem Chromium solves by other means. It will break on some sites and crash sometimes, and the project makes no security promises yet.",
+            "Treat it as a conformance tester rather than a browser. Load your app, watch for layout shifts and service-worker failures, and you will learn which of your \"standards-based\" choices were really Chromium behaviours. A rendering monopoly is a single point of failure for the whole web; a fourth engine that occasionally disagrees is worth more than it costs."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Strategy & industry",
+      "blurb": "How the economics are actually moving.",
+      "articles": [
+        {
+          "title": "The individual exception: one person, a harness, and three machines",
+          "source": "Stratechery",
+          "url": "https://stratechery.com/2026/the-individual-exception/",
+          "why": "It is the most concrete description yet of the shape you are already building toward with your own homelab and cron jobs.",
+          "body": [
+            "Ben Thompson's post opens with a list of things he built in four days: a service that drives every camera, light and mixer in his studio, with clients for Windows, iPhone, web and a Stream Deck; several single-use iOS apps; a screen-sharing client he now uses daily; and a small harness that farms work to a Mac for iOS builds, a gaming PC for GPU work and a Linux server for everything else, with a status board on every TV in the house and a Telegram bot.",
+            "The analytical half is about employees per dollar of revenue. AT&T in 1959 had 729,000 employees on $87.5 billion in today's money. Nvidia in 2026 has 42,000 on $361.8 billion. Anthropic, by his table, has 5,300 on $35.3 billion. His thesis is that a lot more future companies look like Nvidia than like AT&T: tiny teams attacking sectors from below, with the incumbent's slow adaptation read as AI failing in the short run.",
+            "He is also honest about the bear case: AI advocates may have overestimated how much of the economy is verifiable the way code and math are. That is the same thread running through today's other items. The leverage is real and unevenly distributed, and it concentrates wherever you can check the work."
+          ]
+        },
+        {
+          "title": "OpenAI puts chat and coding agents on one token meter",
+          "source": "OpenAI Help Center",
+          "url": "https://help.openai.com/en/articles/20001625-understanding-chatgpt-and-codex-usage-limits",
+          "why": "If you pay for these tools, your agent loop and your context hygiene are now the same budget.",
+          "body": [
+            "Starting in December, Plus, Pro and Business plans get a single allowance shared across ChatGPT and Codex, measured in tokens rather than messages, as Work gets folded into the main ChatGPT interface. Instant chat does not draw from it. Limits apply over a five-hour window and a weekly window, and you need headroom in both. Reaching a limit leaves waiting, upgrading or buying credits, plus whatever banked resets your account holds.",
+            "The token meter changes behaviour in ways message limits did not. A long agent session with a fat context burns allowance on every step, so context pruning, model routing and picking a reasoning level become cost decisions rather than taste. It also makes the cheap model worth wiring up for the legwork.",
+            "One caveat on the transition: OpenAI's product lead said a launch billing error had under-charged GPT-6.2 usage, and as reported, users will now reach limits about 40% faster on Astra and 25% faster on Sol than last week. Every plan got one banked reset as compensation. Single-source, from a post rather than a policy page, but worth knowing before you plan a heavy week."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Wildcard",
+      "blurb": "Off-topic, but you will use it.",
+      "articles": [
+        {
+          "title": "sqlite3_rsync copies a live database over SSH without a second copy on disk",
+          "source": "Simon Willison",
+          "url": "https://simonwillison.net/2026/Nov/26/sqlite3-rsync/",
+          "why": "Your homelab is full of SQLite-backed apps, and this is the backup story that does not need free space equal to the database.",
+          "body": [
+            "The usual ways to snapshot SQLite, the backup API and VACUUM INTO, both need room for a full duplicate. On a small VPS where the database is more than half the disk, that is the whole problem. sqlite3_rsync instead streams a consistent snapshot to another machine over SSH, page by page.",
+            "The protocol is rsync's idea applied to database pages. The replica sends a hash per page, and the origin returns only pages whose hashes differ, asking for finer-grained hashes when a grouped hash misses. A page is 4096 bytes and a hash is 20, so an unchanged database costs about 0.5% of its size in traffic. Both sides can stay live: writers keep writing to the origin, readers keep reading the replica, and you get the state as of when the copy started. Ordinary rsync cannot promise that, because it does not understand transactions.",
+            "It is not a backup system. You still need retention, encryption and a restore you have actually rehearsed. But for getting a snapshot off a box that has no spare disk, it removes the excuse."
+          ]
+        },
+        {
+          "title": "Xteink replaced the X4 Pro's firmware in October, and it changes the CrossPoint decision",
+          "source": "readme.club",
+          "url": "https://www.readme.club/news/licorice-what-xteinks-new-software-changes-for-everyday-readers",
+          "why": "It is your reader, the new stock firmware is a real upgrade, and the upgrade order determines whether you can flash CrossPoint from a card.",
+          "body": [
+            "In October, Xteink quietly replaced the stock software on the X4 Pro and X4 Classic with a system called Licorice. It needs the newer ESP32-S3 chip, so the X3 and original X4 stay on the old firmware. There is still no documentation page for it; the release notes live on the subreddit.",
+            "What you get: TTF fonts with weight and size settings, much better hyphenation, footnotes in a popup instead of a jump to the back, OPDS catalogue browsing, KOReader sync in beta, Bluetooth page turners, file search, and a home screen called Desk with clock, sun times and reading stats that can stay visible when the device is off. What you lose when you switch: bookshelf order, possibly reading progress and bookmarks, old BIN/XTF fonts, and your pairing with the Xteink app. There is still no DRM support and no PDF, and highlights and a dictionary are not there on the Classic.",
+            "The ordering detail is the useful one. On the X4 Pro, updating to the latest Licorice is what makes installing CrossPoint from a microSD card possible, so upgrading does not close a door. If you mostly read DRM-free EPUBs, update, live with it for a week, and only flash if you hit a wall."
+          ]
+        }
+      ]
+    }
+  ]
+}

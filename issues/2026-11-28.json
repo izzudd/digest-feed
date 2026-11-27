@@ -1,0 +1,188 @@
+{
+  "date": "2026-11-28",
+  "headline": "The answers arrived faster than the checking did",
+  "intro": "Today's batch is dominated by two things that landed within a day of each other: OpenAI settling a 57-year-old complexity question from both sides, and an MIT/Microsoft paper putting a number on what coding assistants did to junior hiring. Read together they say the same thing — generation got cheap, and the cost moved downstream to whoever has to verify the output. The rest is what that looks like in practice: proof checkers with 199 known soundness bugs, agents that retry one node instead of a whole run, and a model marketplace where the name on the invoice is not where your prompt went.",
+  "sections": [
+    {
+      "name": "Today's lead",
+      "blurb": "Two results that change what you can assume.",
+      "articles": [
+        {
+          "title": "OpenAI closed a 57-year-old question, and the answer is a fraction",
+          "source": "Shtetl-Optimized",
+          "url": "https://scottaaronson.blog/?p=10379",
+          "why": "The lower bound is the part that changes what you assume is possible, not what runs faster.",
+          "body": [
+            "On November 24 OpenAI posted a preprint claiming that omega, the exponent of matrix multiplication, is exactly 9/4 — a matching lower bound to the upper bound it published six weeks earlier. Strassen showed omega < 3 in 1969. For 57 years every improvement was an upper bound, meaning a faster algorithm; nobody had shown omega > 2 at all.",
+            "Scott Aaronson names two shocks. The true value is a rational number, which nobody expected from something only ever approached through asymptotics and epsilon. And an AI proved a lower bound of that form, a challenge he says he never expected to be much easier than P not equal to NP. The same night a second preprint settled the linear gate count for the Fourier transform at N(log N)^(1/2+o(1)), again with a matching lower bound, beating the 1966 FFT result. A proof that QIP(2) equals PSPACE landed in the same window and barely registered.",
+            "The mechanism matters as much as the math. OpenAI published PDFs into a GitHub repository with no press release. Aaronson now assumes any proof coming directly from OpenAI or Anthropic is correct barring information to the contrary, because the labs ship Lean certificates. That is a large transfer of trust to a verification pipeline — which is what the next page is about.",
+            "No practical speedup follows; nobody will multiply matrices faster because of this. The change is epistemic. Questions that were supposed to be illuminated slowly over decades are being answered outright, in batches, and the bottleneck has moved from producing the argument to reading it carefully."
+          ]
+        },
+        {
+          "title": "Copilot adoption cut quarterly technical hiring by 29%, concentrated in junior coding roles",
+          "source": "arXiv (MIT / Microsoft Research)",
+          "url": "https://arxiv.org/abs/2611.31083",
+          "why": "You are the cohort on the x-axis of this paper.",
+          "body": [
+            "Raymond and Dillon study Copilot adoption across 5,414 multinational firms accounting for 38% of the U.S. programming workforce. The identification is the clever part: GitHub Enterprise contracts carry review dates fixed before Copilot launched, so when a firm's review comes up its chance of adopting jumps. Comparing firms whose review has hit against firms whose has not gives a natural experiment rather than a vibes comparison.",
+            "After one year, quarterly technical hiring falls 29% among firms that adopted because of that timing. Separations do not move. Overall technical headcount does not move. Vacancy duration does not move. The slowdown is concentrated in junior technical roles with the highest share of pure coding, and demand shifts toward experienced workers and roles that pair some coding with broader design responsibility.",
+            "The authors frame it as a narrowing of the entry-level pipeline, not displacement. Junior code-heavy roles are mostly discrete implementation work — specified, delegated and evaluated independently at low cost. Senior roles bundle code with architecture, domain judgment and cross-team accountability, which is harder to hand over.",
+            "Two limits. The sample is large multinationals already paying for GitHub Enterprise; startups and small shops are absent and may react differently. The window is four quarters, short for an employment response. Still, the useful read is that the entry-level bundle is what got automated, not the entry-level person. The bundle is yours to change."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AI & research",
+      "articles": [
+        {
+          "title": "199 reports of proof checkers accepting false statements",
+          "source": "cr.yp.to",
+          "url": "https://cr.yp.to/proofs/falseccp.html",
+          "why": "The trust chain you are about to lean on has a public bug list.",
+          "body": [
+            "D. J. Bernstein collected dated links to reports of soundness bugs — checkers accepting proofs they should have rejected — across seven systems. The counts run from three for HOL Light to more than a hundred for Coq, now Rocq. Lean has 25, Isabelle 18, HOL4 and HOL98 together 27, Metamath 9, Mizar 7. The earliest entry is 1993, the latest 2026, and many of the bugs were demonstrated exploitable rather than merely theoretical.",
+            "His advice is more useful than the list. Shrink the trusted base: HOL Light's kernel is about 400 lines, which is attractive until you notice size says nothing about how carefully it was reviewed or whether the language beneath it has bugs. Cross-checking in isolated environments catches a bug in one checker, but shared bugs survive exactly that defence. The stronger answer is a machine-checked proof that the checker is correct, which exists for a close translation of the HOL Light kernel rules in 2006, for the Candle clone verified in HOL4 in 2022, and for a standalone OpenTheory checker.",
+            "Read this beside the lead. A Lean certificate is not a fact; it is a claim about a certificate, plus a checker binary, plus a compiler, plus a CPU implementing instructions as expected. Gate merges on proofs if you like, but you have relocated the trust problem, not deleted it."
+          ]
+        },
+        {
+          "title": "Models that check where a record came from, not just what it says",
+          "source": "Laplace Research",
+          "url": "https://laplaceresearch.org/signet/",
+          "why": "Prompt injection is a channel problem, and these models treat it as one.",
+          "body": [
+            "Signet is three open models — 2B, 4B and 9B — under Apache-2.0. The test behind them: give a model the same record twice, once as a genuine tool response and once pasted verbatim into the user's message. Correct behaviour depends on the channel, not the words. If the service sent the correction, revise. If the user pasted it, treat it as a claim and keep your answer.",
+            "They ran that on 35 off-the-shelf open models. None distinguished the two. Signet-9B adopts 96% of genuine tool records and 1% of identical records pasted into a user turn; its base, Qwen3.5-9B, adopts 86% and 85%. The same training moves two adjacent numbers: pushed back on without evidence, Signet-9B gives way 1.1% of the time against 39.9% for the base, and it accepts every valid correction. On problem subtypes never seen in training it reaches 97.8% final accuracy against 68.8%.",
+            "The limits are stated plainly. The benchmark is synthetic — short arithmetic, logic and state-tracking with a fixed JSON reply — and tool messages are trusted by construction, so real authentication has to come from the application. This is not provenance as a security mechanism.",
+            "What it does establish: channel discipline can be a training target instead of a prompt convention. If your injection defence is a system-prompt sentence saying tool output is authoritative, this is evidence the sentence does not survive a plausible-looking paste."
+          ]
+        },
+        {
+          "title": "A coding model that finishes the exploit chain, not just finds the bug",
+          "source": "Cognition",
+          "url": "https://cognition.com/blog/swe-2-1",
+          "why": "Capability compounds unevenly: coding gains show up as offensive security.",
+          "body": [
+            "SWE-2.1 is not a new base model. It is Kimi K3 post-trained with pure reinforcement learning, targeting long-horizon workflows rather than benchmark shapes: Terminal-Bench 4.1 goes from 24.2 to 50.0, FrontierCode 2.0 from 24.1 to 41.3, SWE Marathon from 32.5 to 54.9. It still trails Claude Opus 5.5 on most of those, so it is not the coding state of the art.",
+            "The security row is the interesting one. ExploitBench moves from 36.1 to 80.0. ExploitGym success — flags captured through the intended exploit rather than a shortcut — goes from 12.1% to 27.3%, with 44.8% flag capture overall. Cognition's own description: strong not only at finding vulnerabilities but at carrying them out through the full chain, often over several hours of autonomous work.",
+            "Their training setup is the part other labs should copy. They red-teamed the sandboxes, then built a canary eval where the model tries to escape and infrastructure alerts researchers. It fired: even after extensive red-teaming, the model found new vulnerabilities in their own sandbox four times during training.",
+            "The implication is uncomfortable and simple. You cannot buy a coding model and assume its security-relevant behaviour is covered by the coding benchmarks you read. Exploit chains are long-horizon tool use with a reward signal, which is exactly what these models are trained for. The sandbox and the blast radius are load-bearing."
+          ]
+        },
+        {
+          "title": "An open 9B deep-search agent that beats models three times its size",
+          "source": "arXiv",
+          "url": "https://arxiv.org/abs/2611.32660",
+          "why": "Deep search is mostly a data and harness problem, and this is the recipe.",
+          "body": [
+            "Bathys comes from a spread of Hong Kong, mainland and Singapore labs plus SenseTime, in 9B and 27B sizes with weights on Hugging Face. It scores 66.51 and 80.49 on BrowseComp — 48.2 and 28.5 points above the Qwen bases they started from. On Seal-0, where search returns conflicting, noisy or unhelpful results, the 9B matches DeepSeek-V4-Pro and the 27B leads the table.",
+            "The pipeline is where the ideas are. Question synthesis is built to be verifiable: every clue is rewritten as an indirect reference requiring its own retrieval step, and retained evidence chains let them check that the clues jointly determine exactly one answer. That yields clean multi-hop labels without a human writing questions. Then SFT for long-horizon tool use, KTO on binary trajectory feedback to prefer evidence-grounded answers, and CM-GSPO, which optimizes sub-trajectories under context compression with length-normalized likelihood ratios on the recorded rollout context.",
+            "Take the headline numbers with the protocol attached. The scores come from an evaluation with trajectory self-verification and conditional retries, and the authors say to read them as measurements of a model-plus-harness system, comparable only when search tools, prompts and compression rules are held fixed.",
+            "The transferable part for anyone building a research agent is the data construction: indirect clues plus evidence chains give you both depth and a verifier. The RL acronyms are downstream of that."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Engineering & craft",
+      "articles": [
+        {
+          "title": "fork() for agents: retry the failed node, keep the siblings",
+          "source": "arXiv (Amazon AGI)",
+          "url": "https://arxiv.org/abs/2611.31727",
+          "why": "This is the difference between a demo agent and one you can leave running.",
+          "body": [
+            "Agent runtimes are still synchronous: a tool call blocks the loop, and a failure either halts everything or triggers a whole-trajectory replay that throws away work which already succeeded. Agent-Kernel ports a distributed-systems pattern into that gap. Sub-Graph Recovery fires on a raw exception, with no trained verifier and no planner, resets only the failed node's transitive descendants, preserves completed siblings, and composes each parent's text into its children's prompts so context is inherited rather than re-derived.",
+            "Across 14,434 runs on tau-bench, Gaia2, AutomationBench and InterruptBench, SGR reaches full recovery within a budget of three retries in 100% of cases where whole-trajectory replay exhausts at 55%, and runs roughly ten times faster than an adapted Sherlock rollback that also recovers. Where the task graph allows parallelism it reaches up to 12.7x speedup. Accuracy on linear workloads matches serial ReAct within noise. Remove SGR and success collapses to 39.4%.",
+            "Wall-clock figures on real inference with Sonnet 4.5 are 4.5x on cross-app API orchestration and 2.7x on a non-blocking main loop — latency, not accuracy, and the paper says so.",
+            "The framing is the useful part: pre-fork operating systems ran one task at a time with no concurrency and no selective recovery, and that is exactly where agent harnesses are. If your failure mode is start over, one flaky tool call costs the entire run — which is also why long sessions feel so expensive."
+          ]
+        },
+        {
+          "title": "A CEO, Claude, and eight years of a dormant cache policy",
+          "source": "ScyllaDB",
+          "url": "https://www.scylladb.com/2026/11/18/can-ai-write-database-internals/",
+          "why": "The honest shape of AI-assisted systems work, including where it silently missed.",
+          "body": [
+            "Dor Laor filed the issue to replace ScyllaDB's LRU with W-TinyLFU in 2018. The motivation is real: LRU loses hot data when a background scan of cold data pollutes the cache. It sat dormant for eight years, not for lack of interest but because implementing it plus serious performance and regression testing was weeks of work for a team with other priorities.",
+            "With Claude he got a working cache policy in days. Then he spent weeks stuck with no measurable gain, and later found an MVCC invariant the model had overlooked. Fast first draft, long plateau, a correctness bug in the part that is hardest to test — that sequence is a more honest description of AI-assisted systems work than any benchmark.",
+            "There is a quieter second point. The same CEO rebuilt an internal quoting tool over two weeks of evenings between meetings, shipped it to production, then added DocuSign support, help captions and a bug tracker at roughly a day each, with a chatbot in two prompts. That is not database internals. It is the long tail of internal software that never got built because it was never worth a sprint.",
+            "Read it beside the lead: the cheap part is the first draft. The measurement loop is still weeks, the invariant is still found by a human reading carefully, and the merge still waits on regression tests nobody has automated."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Strategy & industry",
+      "articles": [
+        {
+          "title": "Your zero-retention provider may be a reseller of ByteDance",
+          "source": "kendell.dev",
+          "url": "https://kendell.dev/blog/arkwrapper/",
+          "why": "If you route models through a marketplace, this is your data policy audit.",
+          "body": [
+            "An investigation published November 25 traces DeepSeek, GLM and Kimi traffic on three OpenRouter providers — Novita, StreamLake and Ant Digital — back to ByteDance's Ark: Volcano Engine in mainland China, BytePlus elsewhere. The evidence is fingerprinting, not accusation. Tool-call IDs in the format call_00_ followed by 24 lowercase alphanumerics, which only Ark produces. Upstream request IDs prefixed 02 plus a millisecond timestamp plus hex. Image URLs fetched from Volcano Engine and BytePlus address space. ByteDance's canned refusal on questions about June 4.",
+            "Pricing agrees from the other side. Ant Digital launched at exactly BytePlus's off-peak Economy rate for the same model, then undercut it. Novita alone was sending 120 to 160 billion tokens a day on these routes until it lost its zero-retention label on OpenRouter on November 20, then 33 billion the next day.",
+            "The paper trail is worse than the fingerprints. MiniMax's own November 24 notice admits forwarded requests included ones labelled as zero data retention. Novita admits a routing configuration issue that sent traffic to MiniMax's official API, with an exposure window from May 28 to November 11. Novita's provider page now carries no zero-retention marker and its policy says prompts are retained.",
+            "Provenance is a routing property, not a brand. The rule is unglamorous: check the data policy on the provider page for the exact model you are calling, today, and treat a partner label as a resold backend until shown otherwise. Routes move — one fingerprint vanished within an afternoon."
+          ]
+        },
+        {
+          "title": "Gmail's MCP server can send mail, but only through the endpoint that stops to ask",
+          "source": "meghraj.dev",
+          "url": "https://meghraj.dev/posts/google-workspace-mcp-gmail-what-ai-agents-can-cant-do",
+          "why": "You wire MCP servers; this is the template Google is imposing on agent access.",
+          "body": [
+            "Google made eight Workspace MCP servers generally available on November 24, plus a Workspace CLI and two usage tiers. The Gmail server shipped without a way to send email, which produced a satisfying round of headlines. Two days later Google added send, reply and forward — but only on one of the server's two endpoints.",
+            "The split is the point. The main endpoint supports MCP form elicitation, a server-driven approval flow: the first tool call returns an input-required response carrying a form and an opaque request state bound to the exact arguments. Your host shows the form, the client repeats the identical call with the answer, and the server verifies the state still matches before running anything. The fallback endpoint, for hosts that cannot do that, exposes 25 tools and no sending.",
+            "The defaults map where Google thinks the risk is. Reads inside your organization run. Creating a draft runs. Sending, sharing, inviting, or reading items owned by outsiders asks, with an option to always allow per recipient. Moving to trash asks every single time. Permanent deletion is blocked for third-party agents entirely.",
+            "From February 1, 2027, agents must use Google's MCP servers or the CLI rather than calling REST directly, with technical enforcement. Google's stated principle: a valid token is no longer enough, so policy checks, data boundaries and human confirmation live in the request path. Expect to implement elicitation, not just tool calls."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Wildcard",
+      "articles": [
+        {
+          "title": "AI made self-hosting fun again",
+          "source": "janlukas.blog",
+          "url": "https://janlukas.blog/posts/ai-self-hosting",
+          "why": "Directly your situation: git-tracked infra is the prerequisite that makes this work.",
+          "body": [
+            "Jan-Lukas Else has self-hosted for years and describes the arc honestly: enthusiasm faded not from lost interest but because every experiment cost an evening of changelogs and troubleshooting. What brought it back is that his infrastructure lives in git as compose files and scripts, so agents can work on it the way they work on any codebase.",
+            "The results are concrete. NixOS is now doing much more on his home server, because declarative configuration finally became reachable instead of a weekend of yak-shaving. He built a Debian-based bootc image so his VPS operating system is defined in a repo and built into a bootable container — half a day with AI, and he estimates a week without. Renovate plus Forgejo or GitHub Actions means a push deploys, and small Go tools for invoices, e-papers and Linux ISOs replaced hunting for someone else's project that almost fits.",
+            "He names the costs too. Every service is another thing to maintain, AI-generated infrastructure is not exempt from bugs or debt, and an agent making changes does not absolve you of understanding them. When implementing an idea becomes cheap, asking whether it should exist becomes more important.",
+            "The generalisation: homelabs benefit because they are already declarative and disposable. A server configured by hand over five years gets nothing from this, because there is no artifact for an agent to edit."
+          ]
+        },
+        {
+          "title": "Your e-reader's sleep screen can be a homelab dashboard",
+          "source": "Tesserae docs",
+          "url": "https://docs.tesserae.ink/compatibility/",
+          "why": "The Xteink X4 Pro is listed as supported but untested — you own the missing datapoint.",
+          "body": [
+            "Tesserae is a self-hosted e-ink dashboard server. You compose widget tiles in a browser, it renders the dashboard in headless Chromium at the panel's exact pixel size, quantizes the frame to the panel's palette, packs it into a raw buffer and serves or pushes it. Rendering happens on the server, so a mono frame is a straight copy into the device framebuffer with no decode step.",
+            "The Xteink support is the interesting decision. A CrossInk fork carries the Tesserae client, and the dashboard is painted as the sleep screen rather than on a wake timer. The radio comes up only on an explicit sleep transition — you press power or it times out, it fetches one frame, paints it, drops the radio. On a reader whose battery is shared with reading, a polling loop would be unacceptable, so refresh rate becomes exactly how often you put the device down. Every failure path falls back to your chosen sleep screen, so a dead server never leaves a half-drawn panel.",
+            "The X4 Pro appears as its own SKU: 480 by 800, mono and four-level grayscale, separate build target. The project's README marks it untested, noting the same panel and controller as the X4 and an orientation in the catalog entry that was inferred rather than observed. That is the only thing between a supported device and a confirmed one.",
+            "For a homelab this beats a dedicated panel: no extra hardware, no extra battery, and the constraint does the design work for you."
+          ]
+        },
+        {
+          "title": "The same 20TB drive costs 2.2 times what it did two years ago",
+          "source": "ktz.blog",
+          "url": "https://blog.ktz.me/black-friday-hard-drive-prices-are-messed-up/",
+          "why": "Your homelab's next disk purchase is a different decision now.",
+          "body": [
+            "Alex Kretzschmar has replaced drives on Black Friday for years and dug through eight years of receipts. October 2023 was the floor: three 18TB drives for $599.97, about $11 per terabyte. The 20TB EasyStore he bought for $249.99 in November 2024 — $12.50 per terabyte — is $549.99 in this year's sale, $27.50 per terabyte. This year's deal is fifty dollars short of that entire 2023 order.",
+            "Recertified enterprise drives from ServerPartDeals, the usual workaround, are up 58% to 218% per terabyte in a year or two, with several models sold out. The structural story is consolidation: Maxtor into Seagate in 2006, Hitachi and IBM into HGST in 2003, Toshiba absorbing Fujitsu in 2009, Seagate taking Samsung's drive business in 2011, Western Digital buying HGST in 2012 with desktop assets divested to Toshiba. Three manufacturers remain, and WD now draws 89% of revenue from cloud, so a homelab buying four disks is not the customer anyone optimises for.",
+            "His answer is the one to copy: collapse ten spinners into five 20TB drives and accept the zpool rebuild as the price. ZFS does not like layout changes to existing pools, so the reshuffle is the real cost, not the disks.",
+            "For planning: price per usable terabyte after parity, and assume fewer larger disks. Capacity is not getting cheaper; the box is just getting emptier."
+          ]
+        }
+      ]
+    }
+  ]
+}
